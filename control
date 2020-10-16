@@ -1,7 +1,7 @@
 Package: me.lightmann.stripecount
 Name: StripeCount
 Depends: mobilesubstrate, firmware (>= 13.0)
-Version: 1.0.3
+Version: 1.0.3.1
 Architecture: iphoneos-arm
 Description: For Zebra - See the number of installed packages at a glance.
 Maintainer: Lightmann

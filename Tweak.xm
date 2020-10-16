@@ -45,7 +45,7 @@ static int configuration;
 
 	if(self.tabBarController.selectedIndex == 3 && !self.stripeCount){
 		//Create label																				
-		self.stripeCount = [[UILabel alloc] initWithFrame:CGRectMake(labelXOffset,-18.5,80,32)];
+		self.stripeCount = [[UILabel alloc] initWithFrame:CGRectMake(labelXOffset,-18.5,labelWidth,32)];
 
 		//RTL Support
 		if([UIApplication sharedApplication].userInterfaceLayoutDirection == UIUserInterfaceLayoutDirectionRightToLeft){
