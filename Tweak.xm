@@ -3,80 +3,104 @@
 //StripeCount
 
 @interface _UITableViewHeaderFooterViewLabel : UILabel
+-(id)_viewControllerForAncestor;
 @end
 
 @interface ZBPackageListTableViewController : UIViewController{
 	int numberOfPackages;
 }
--(void)populatePackages;//custom method called later
+@property UITabBarController *tabBarController;
+@property (nonatomic, retain) UILabel *stripeCount;
 @end
 
-BOOL onPackagesPage = NO;
-BOOL stripeCountMade = NO;
-CGFloat labelXOffset = nil;
-CGFloat labelWidth = nil;
+//local
+CGFloat labelXOffset;
+CGFloat labelWidth;
+NSString *countText;
+int dylibCount;
+
+//prefs
+static BOOL isEnabled;
+static int configuration;
 
 
-
-//Wouldn't normally hook this since it is widely used across iOS, but since StripeCount only injects into Zebra and it has only one tabbar it should be fine 
-%hook UITabBar 
--(void)setSelectedItem:(UITabBarItem *)arg1 {
-	%orig;
-
-	//Determine when user is on the Packages page by checking to see if the tabbar's selected item is the Packages item
-	if([arg1 isEqual:self.items[3]]){ 
-		onPackagesPage = YES;
-	} 
-	else {
-		onPackagesPage = NO;
-	}
-}
-%end
-
-
-//get values we'll use for calculations later
+%group tweak
+//get values we'll use for positioning later
 %hook _UITableViewHeaderFooterViewLabel
 -(void)setFrame:(CGRect)frame{
 	%orig;
 
-	if(onPackagesPage){
+	if([[self _viewControllerForAncestor] isMemberOfClass:%c(ZBPackageListTableViewController)]){
 		labelXOffset = self.frame.origin.x;
 		labelWidth = self.frame.size.width;
 	}
 }
 %end
 
-
+//where the magic happens . . .
 %hook ZBPackageListTableViewController
--(void)refreshTable{
+%property (nonatomic, retain) UILabel *stripeCount;
+-(void)viewDidAppear:(BOOL)appear{
 	%orig;
 
-	//Delays creation of label so # of Packages has time to populate fully
-	[self performSelector:@selector(populatePackages) withObject:nil afterDelay:0.1];
-}
-%new
--(void)populatePackages{
-	if(onPackagesPage && !stripeCountMade){
-		//Create label
-		UILabel *stripeCount = [[UILabel alloc] initWithFrame:CGRectMake(labelXOffset,-18.5,80,32)];
-		
+	if(self.tabBarController.selectedIndex == 3 && !self.stripeCount){
+		//Create label																				
+		self.stripeCount = [[UILabel alloc] initWithFrame:CGRectMake(labelXOffset,-18.5,80,32)];
+
 		//RTL Support
 		if([UIApplication sharedApplication].userInterfaceLayoutDirection == UIUserInterfaceLayoutDirectionRightToLeft){
-			CGRect frame = stripeCount.frame;
-			stripeCount.frame = CGRectMake((labelXOffset+labelWidth-frame.size.width),frame.origin.y,frame.size.width,frame.size.height);
+			CGRect frame = self.stripeCount.frame;
+			self.stripeCount.frame = CGRectMake((labelXOffset+labelWidth-frame.size.width), frame.origin.y, frame.size.width, frame.size.height);
 		}		
 
-		//get # of installed packages and assign it to label
-		int count = MSHookIvar<int>(self, "numberOfPackages");
-		NSString *numOfTweaks = [NSString stringWithFormat:@"%d", count];
-		NSString *baseString = @"Total: ";
-		NSString *stripeCountText = [baseString stringByAppendingString:numOfTweaks];
+		//craft label string and assign it 
+		if(configuration == 1){
+			countText = [@"Dylibs: " stringByAppendingString:[NSString stringWithFormat:@"%d", dylibCount]];
+		}
+		else{
+			int totalCount = MSHookIvar<int>(self, "numberOfPackages");
+			countText = [@"Total: " stringByAppendingString:[NSString stringWithFormat:@"%d", totalCount]];
+		}
 
-		stripeCount.text = stripeCountText;
+		self.stripeCount.text = countText;
 	
-		//Add to tableview 
-		[self.view addSubview:stripeCount];	
-		stripeCountMade = YES;
+		//add StripeCount to Zebra 
+		[self.view addSubview:self.stripeCount];	
 	}
 }
 %end
+%end
+
+
+//	PREFERENCES 
+static void loadPrefs() {
+  NSMutableDictionary *prefs = [[NSMutableDictionary alloc] initWithContentsOfFile:@"/var/mobile/Library/Preferences/me.lightmann.stripecountprefs.plist"];
+
+  if(prefs){
+    isEnabled = ( [prefs objectForKey:@"isEnabled"] ? [[prefs objectForKey:@"isEnabled"] boolValue] : YES );
+	configuration = ( [prefs valueForKey:@"configuration"] ? [[prefs valueForKey:@"configuration"] integerValue] : 0 );
+  }
+}
+
+static void initPrefs() {
+  // Copy the default preferences file when the actual preference file doesn't exist
+  NSString *path = @"/User/Library/Preferences/me.lightmann.stripecountprefs.plist";
+  NSString *pathDefault = @"/Library/PreferenceBundles/StripeCountPrefs.bundle/defaults.plist";
+  NSFileManager *fileManager = [NSFileManager defaultManager];
+  if(![fileManager fileExistsAtPath:path]) {
+    [fileManager copyItemAtPath:pathDefault toPath:path error:nil];
+  }
+}
+
+%ctor {
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)loadPrefs, CFSTR("me.lightmann.stripecountprefs-updated"), NULL, CFNotificationSuspensionBehaviorCoalesce);
+	initPrefs();
+	loadPrefs();
+
+	if(isEnabled)
+		%init(tweak);
+
+	//get # of dylibs -- since the folder contains a .plist for every .dylib we divide by 2 to get just the dylib count 
+	if(configuration == 1)
+		dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/usr/lib/TweakInject" error:nil] count]/2);
+}
