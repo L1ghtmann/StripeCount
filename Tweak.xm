@@ -1,3 +1,5 @@
+#import <UIKit/UIKit.h>
+
 //Lightmann
 //Made during COVID-19
 //StripeCount
@@ -16,8 +18,6 @@
 //local
 CGFloat labelXOffset;
 CGFloat labelWidth;
-NSString *countText;
-int dylibCount;
 
 //prefs
 static BOOL isEnabled;
@@ -55,14 +55,14 @@ static int configuration;
 
 		//craft label string and assign it 
 		if(configuration == 1){
-			countText = [@"Dylibs: " stringByAppendingString:[NSString stringWithFormat:@"%d", dylibCount]];
+			//get # of dylibs -- since the folder contains a .plist for every .dylib we divide by 2 to get just the dylib count 
+			int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/usr/lib/TweakInject" error:nil] count]/2);
+			self.stripeCount.text = [@"Dylibs: " stringByAppendingString:[NSString stringWithFormat:@"%d", dylibCount]];
 		}
 		else{
 			int totalCount = MSHookIvar<int>(self, "numberOfPackages");
-			countText = [@"Total: " stringByAppendingString:[NSString stringWithFormat:@"%d", totalCount]];
+			self.stripeCount.text = [@"Total: " stringByAppendingString:[NSString stringWithFormat:@"%d", totalCount]];
 		}
-
-		self.stripeCount.text = countText;
 	
 		//add StripeCount to Zebra 
 		[self.view addSubview:self.stripeCount];	
@@ -73,34 +73,19 @@ static int configuration;
 
 
 //	PREFERENCES 
-static void loadPrefs() {
-  NSMutableDictionary *prefs = [[NSMutableDictionary alloc] initWithContentsOfFile:@"/var/mobile/Library/Preferences/me.lightmann.stripecountprefs.plist"];
-
-  if(prefs){
-    isEnabled = ( [prefs objectForKey:@"isEnabled"] ? [[prefs objectForKey:@"isEnabled"] boolValue] : YES );
-	configuration = ( [prefs valueForKey:@"configuration"] ? [[prefs valueForKey:@"configuration"] integerValue] : 0 );
-  }
-}
-
-static void initPrefs() {
-  // Copy the default preferences file when the actual preference file doesn't exist
-  NSString *path = @"/User/Library/Preferences/me.lightmann.stripecountprefs.plist";
-  NSString *pathDefault = @"/Library/PreferenceBundles/StripeCountPrefs.bundle/defaults.plist";
-  NSFileManager *fileManager = [NSFileManager defaultManager];
-  if(![fileManager fileExistsAtPath:path]) {
-    [fileManager copyItemAtPath:pathDefault toPath:path error:nil];
-  }
+void preferencesChanged(){
+	NSDictionary *prefs = [[NSUserDefaults standardUserDefaults] persistentDomainForName:@"me.lightmann.stripecountprefs"];
+	if(prefs){
+  	  	isEnabled = ([prefs objectForKey:@"isEnabled"] ? [[prefs valueForKey:@"isEnabled"] boolValue] : YES );
+		configuration = ([prefs objectForKey:@"configuration"] ? [[prefs valueForKey:@"configuration"] integerValue] : 0 );
+	}
 }
 
 %ctor {
-	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)loadPrefs, CFSTR("me.lightmann.stripecountprefs-updated"), NULL, CFNotificationSuspensionBehaviorCoalesce);
-	initPrefs();
-	loadPrefs();
+	preferencesChanged();
+
+	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)preferencesChanged, CFSTR("me.lightmann.stripecountprefs-updated"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
 
 	if(isEnabled)
 		%init(tweak);
-
-	//get # of dylibs -- since the folder contains a .plist for every .dylib we divide by 2 to get just the dylib count 
-	if(configuration == 1)
-		dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/usr/lib/TweakInject" error:nil] count]/2);
 }
