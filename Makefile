@@ -10,5 +10,3 @@ StripeCount_FILES = Tweak.xm
 StripeCount_CFLAGS = -fobjc-arc
 
 include $(THEOS_MAKE_PATH)/tweak.mk
-SUBPROJECTS += stripecountprefs
-include $(THEOS_MAKE_PATH)/aggregate.mk

@@ -13,18 +13,16 @@
 }
 @property UITabBarController *tabBarController;
 @property (nonatomic, retain) UILabel *stripeCount;
+-(void)reconfigureStripeCount;
 @end
 
-//local
+//local 
 CGFloat labelXOffset;
 CGFloat labelWidth;
-
-//prefs
-static BOOL isEnabled;
-static int configuration;
+NSUserDefaults *configuration;
 
 
-%group tweak
+//TWEAK
 //get values we'll use for positioning later
 %hook _UITableViewHeaderFooterViewLabel
 -(void)setFrame:(CGRect)frame{
@@ -43,6 +41,7 @@ static int configuration;
 -(void)viewDidAppear:(BOOL)appear{
 	%orig;
 
+	//if on packages page (index 3) and label hasn't been made yet... 
 	if(self.tabBarController.selectedIndex == 3 && !self.stripeCount){
 		//Create label																				
 		self.stripeCount = [[UILabel alloc] initWithFrame:CGRectMake(labelXOffset,-18.5,labelWidth,32)];
@@ -53,8 +52,9 @@ static int configuration;
 			self.stripeCount.frame = CGRectMake((labelXOffset+labelWidth-frame.size.width), frame.origin.y, frame.size.width, frame.size.height);
 		}		
 
-		//craft label string and assign it 
-		if(configuration == 1){
+		//configure label based on our dylib_config bool (default is false)
+		configuration = [NSUserDefaults standardUserDefaults]; 
+		if([configuration boolForKey:@"sc_dylib_config"]){
 			//get # of dylibs -- since the folder contains a .plist for every .dylib we divide by 2 to get just the dylib count 
 			int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/usr/lib/TweakInject" error:nil] count]/2);
 			self.stripeCount.text = [@"Dylibs: " stringByAppendingString:[NSString stringWithFormat:@"%d", dylibCount]];
@@ -63,29 +63,31 @@ static int configuration;
 			int totalCount = MSHookIvar<int>(self, "numberOfPackages");
 			self.stripeCount.text = [@"Total: " stringByAppendingString:[NSString stringWithFormat:@"%d", totalCount]];
 		}
-	
-		//add StripeCount to Zebra 
-		[self.view addSubview:self.stripeCount];	
-	}
-}
-%end
-%end
 
+		//add StripeCount to Zebra (tableview) 
+		[self.view addSubview:self.stripeCount];
 
-//	PREFERENCES 
-void preferencesChanged(){
-	NSDictionary *prefs = [[NSUserDefaults standardUserDefaults] persistentDomainForName:@"me.lightmann.stripecountprefs"];
-	if(prefs){
-  	  	isEnabled = ([prefs objectForKey:@"isEnabled"] ? [[prefs valueForKey:@"isEnabled"] boolValue] : YES );
-		configuration = ([prefs objectForKey:@"configuration"] ? [[prefs valueForKey:@"configuration"] integerValue] : 0 );
+		//create and add tap gesture to tableview 
+		UITapGestureRecognizer *configGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(reconfigureStripeCount)];
+		configGesture.numberOfTapsRequired = 2;
+		[self.view addGestureRecognizer:configGesture];
 	}
 }
 
-%ctor {
-	preferencesChanged();
-
-	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)preferencesChanged, CFSTR("me.lightmann.stripecountprefs-updated"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
-
-	if(isEnabled)
-		%init(tweak);
+%new
+// Respond to tap gesture 
+-(void)reconfigureStripeCount{
+	//if config is set to default, change to dylib 
+	if(![configuration boolForKey:@"sc_dylib_config"]){
+		int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/usr/lib/TweakInject" error:nil] count]/2);
+		self.stripeCount.text = [@"Dylibs: " stringByAppendingString:[NSString stringWithFormat:@"%d", dylibCount]];
+		[configuration setBool:YES forKey:@"sc_dylib_config"]; //change completed
+	} 
+	//if config is set to dylib, change to default
+	else{ 
+		int totalCount = MSHookIvar<int>(self, "numberOfPackages");
+		self.stripeCount.text = [@"Total: " stringByAppendingString:[NSString stringWithFormat:@"%d", totalCount]];
+		[configuration setBool:NO forKey:@"sc_dylib_config"]; //change completed
+	}
 }
+%end
