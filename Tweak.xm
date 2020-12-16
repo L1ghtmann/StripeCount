@@ -56,7 +56,7 @@ NSUserDefaults *configuration;
 		configuration = [NSUserDefaults standardUserDefaults]; 
 		if([configuration boolForKey:@"sc_dylib_config"]){
 			//get # of dylibs -- since the folder contains a .plist for every .dylib we divide by 2 to get just the dylib count 
-			int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/usr/lib/TweakInject" error:nil] count]/2);
+			int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Library/MobileSubstrate/DynamicLibraries" error:nil] count]/2);
 			self.stripeCount.text = [@"Dylibs: " stringByAppendingString:[NSString stringWithFormat:@"%d", dylibCount]];
 		}
 		else{
@@ -79,7 +79,7 @@ NSUserDefaults *configuration;
 -(void)reconfigureStripeCount{
 	//if config is set to default, change to dylib 
 	if(![configuration boolForKey:@"sc_dylib_config"]){
-		int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/usr/lib/TweakInject" error:nil] count]/2);
+		int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Library/MobileSubstrate/DynamicLibraries" error:nil] count]/2);
 		self.stripeCount.text = [@"Dylibs: " stringByAppendingString:[NSString stringWithFormat:@"%d", dylibCount]];
 		[configuration setBool:YES forKey:@"sc_dylib_config"]; //change completed
 	} 
