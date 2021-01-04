@@ -49,7 +49,7 @@ NSUserDefaults *configuration;
 		//RTL Support
 		if([UIApplication sharedApplication].userInterfaceLayoutDirection == UIUserInterfaceLayoutDirectionRightToLeft){
 			CGRect frame = self.stripeCount.frame;
-			self.stripeCount.frame = CGRectMake((labelXOffset+labelWidth-frame.size.width), frame.origin.y, frame.size.width, frame.size.height);
+			[self.stripeCount setFrame:CGRectMake((labelXOffset+labelWidth-frame.size.width), frame.origin.y, frame.size.width, frame.size.height)];
 		}		
 
 		//configure label based on our dylib_config bool (default is false)
@@ -57,11 +57,11 @@ NSUserDefaults *configuration;
 		if([configuration boolForKey:@"sc_dylib_config"]){
 			//get # of dylibs -- since the folder contains a .plist for every .dylib we divide by 2 to get just the dylib count 
 			int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Library/MobileSubstrate/DynamicLibraries" error:nil] count]/2);
-			self.stripeCount.text = [@"Dylibs: " stringByAppendingString:[NSString stringWithFormat:@"%d", dylibCount]];
+			[self.stripeCount setText:[@"Dylibs: " stringByAppendingString:[NSString stringWithFormat:@"%d", dylibCount]]];
 		}
 		else{
 			int totalCount = MSHookIvar<int>(self, "numberOfPackages");
-			self.stripeCount.text = [@"Total: " stringByAppendingString:[NSString stringWithFormat:@"%d", totalCount]];
+			[self.stripeCount setText:[@"Total: " stringByAppendingString:[NSString stringWithFormat:@"%d", totalCount]]];
 		}
 
 		//add StripeCount to Zebra (tableview) 
@@ -80,13 +80,13 @@ NSUserDefaults *configuration;
 	//if config is set to default, change to dylib 
 	if(![configuration boolForKey:@"sc_dylib_config"]){
 		int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Library/MobileSubstrate/DynamicLibraries" error:nil] count]/2);
-		self.stripeCount.text = [@"Dylibs: " stringByAppendingString:[NSString stringWithFormat:@"%d", dylibCount]];
+		[self.stripeCount setText:[@"Dylibs: " stringByAppendingString:[NSString stringWithFormat:@"%d", dylibCount]]];
 		[configuration setBool:YES forKey:@"sc_dylib_config"]; //change completed
 	} 
 	//if config is set to dylib, change to default
 	else{ 
 		int totalCount = MSHookIvar<int>(self, "numberOfPackages");
-		self.stripeCount.text = [@"Total: " stringByAppendingString:[NSString stringWithFormat:@"%d", totalCount]];
+		[self.stripeCount setText:[@"Total: " stringByAppendingString:[NSString stringWithFormat:@"%d", totalCount]]];
 		[configuration setBool:NO forKey:@"sc_dylib_config"]; //change completed
 	}
 }
