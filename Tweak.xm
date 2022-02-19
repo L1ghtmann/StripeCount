@@ -1,8 +1,14 @@
+//
+//	Tweak.xm
+//	StripeCount
+//
+//	Created by Lightmann during COVID-19
+//
+
 #import "Tweak.h"
 
-// Lightmann
-// Made during COVID-19
-// StripeCount
+CGFloat labelXOffset;
+CGFloat labelWidth;
 
 // get values we'll use for positioning later
 %hook _UITableViewHeaderFooterViewLabel
@@ -42,7 +48,7 @@
 		}
 
 		// configure label based on our boolean (default is false)
-		if([[NSUserDefaults standardUserDefaults] boolForKey:configKey]){
+		if([[NSUserDefaults standardUserDefaults] boolForKey:@"sc_dylib_config"]){
 			// get # of dylibs -- since the folder contains a .plist for every .dylib we divide by 2 to get just the dylib count
 			int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Library/MobileSubstrate/DynamicLibraries" error:nil] count]/2);
 			[self.stripeCount setText:[NSString stringWithFormat:@"Dylibs: %d", dylibCount]];
@@ -54,7 +60,7 @@
 
 		// create and add tap gesture to tableview
 		UITapGestureRecognizer *configGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(reconfigureStripeCount)];
-		configGesture.numberOfTapsRequired = 2;
+		[configGesture setNumberOfTapsRequired:2];
 		[self.view addGestureRecognizer:configGesture];
 	}
 }
@@ -63,16 +69,16 @@
 // respond to tap gesture
 -(void)reconfigureStripeCount{
 	// if config is set to total, change to dylib
-	if(![[NSUserDefaults standardUserDefaults] boolForKey:configKey]){
+	if(![[NSUserDefaults standardUserDefaults] boolForKey:@"sc_dylib_config"]){
 		int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Library/MobileSubstrate/DynamicLibraries" error:nil] count]/2);
 		[self.stripeCount setText:[NSString stringWithFormat:@"Dylibs: %d", dylibCount]];
-		[[NSUserDefaults standardUserDefaults] setBool:YES forKey:configKey];
+		[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"sc_dylib_config"];
 	}
 	// if config is set to dylib, change to total
 	else{
 		int totalCount = MSHookIvar<int>(self, "numberOfPackages");
 		[self.stripeCount setText:[NSString stringWithFormat:@"Total: %d", totalCount]];
-		[[NSUserDefaults standardUserDefaults] setBool:NO forKey:configKey];
+		[[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"sc_dylib_config"];
 	}
 }
 %end
