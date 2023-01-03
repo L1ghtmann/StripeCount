@@ -10,6 +10,17 @@
 CGFloat labelXOffset;
 CGFloat labelWidth;
 
+NSUInteger getDylibCount(){
+	NSError *readErr = nil;
+	NSArray *contents = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Library/MobileSubstrate/DynamicLibraries" error:&readErr];
+	if(!readErr){
+		return [[contents filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"self ENDSWITH '.dylib'"]] count];
+	}
+	else{
+		return 0;
+	}
+}
+
 // get values we'll use for positioning later
 %hook _UITableViewHeaderFooterViewLabel
 -(void)setFrame:(CGRect)frame{
@@ -30,13 +41,12 @@ CGFloat labelWidth;
 
 	// if we're on the packages page (index 3) and stripeCount hasn't been made yet...
 	if(self.tabBarController.selectedIndex == 3 && !self.stripeCount){
-		// Create label
-		self.stripeCount = [[UILabel alloc] initWithFrame:CGRectZero];
+		// create label
+		self.stripeCount = [[UILabel alloc] init];
 		[self.view addSubview:self.stripeCount];
 
 		[self.stripeCount setTranslatesAutoresizingMaskIntoConstraints:NO];
 		[self.stripeCount.heightAnchor constraintEqualToConstant:20].active = YES;
-		[self.stripeCount.widthAnchor constraintEqualToConstant:self.view.bounds.size.width].active = YES;
 		[self.stripeCount.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:-12].active = YES;
 
 		// RTL Support
@@ -49,13 +59,11 @@ CGFloat labelWidth;
 
 		// configure label based on our boolean (default is false)
 		if([[NSUserDefaults standardUserDefaults] boolForKey:@"sc_dylib_config"]){
-			// get # of dylibs -- since the folder contains a .plist for every .dylib we divide by 2 to get just the dylib count
-			int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Library/MobileSubstrate/DynamicLibraries" error:nil] count]/2);
-			[self.stripeCount setText:[NSString stringWithFormat:@"Dylibs: %d", dylibCount]];
+			[self.stripeCount setText:[NSString stringWithFormat:@"Tweak Dylibs: %lu", getDylibCount()]];
 		}
 		else{
 			int totalCount = MSHookIvar<int>(self, "numberOfPackages");
-			[self.stripeCount setText:[NSString stringWithFormat:@"Total: %d", totalCount]];
+			[self.stripeCount setText:[NSString stringWithFormat:@"Total Packages: %d", totalCount]];
 		}
 
 		// create and add tap gesture to tableview
@@ -70,14 +78,13 @@ CGFloat labelWidth;
 -(void)reconfigureStripeCount{
 	// if config is set to total, change to dylib
 	if(![[NSUserDefaults standardUserDefaults] boolForKey:@"sc_dylib_config"]){
-		int dylibCount = ([[[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/Library/MobileSubstrate/DynamicLibraries" error:nil] count]/2);
-		[self.stripeCount setText:[NSString stringWithFormat:@"Dylibs: %d", dylibCount]];
+		[self.stripeCount setText:[NSString stringWithFormat:@"Tweak Dylibs: %lu", getDylibCount()]];
 		[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"sc_dylib_config"];
 	}
 	// if config is set to dylib, change to total
 	else{
 		int totalCount = MSHookIvar<int>(self, "numberOfPackages");
-		[self.stripeCount setText:[NSString stringWithFormat:@"Total: %d", totalCount]];
+		[self.stripeCount setText:[NSString stringWithFormat:@"Total Packages: %d", totalCount]];
 		[[NSUserDefaults standardUserDefaults] setBool:NO forKey:@"sc_dylib_config"];
 	}
 }
